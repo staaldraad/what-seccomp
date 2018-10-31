@@ -3,47 +3,51 @@ package main
 import (
 	"fmt"
 	"syscall"
+
+	"github.com/jessfraz/bpfd/proc"
 )
 
 func main() {
+	// check if seccomp is enforced. otherwise this is silly
+
+	seccompMode := proc.GetSeccompEnforcingMode(0)
+	fmt.Printf("Seccomp: %s\n", seccompMode)
+
 	fmt.Println("Checking available syscalls...")
 
 	allowed := []int{}
 	blocked := []int{}
 
 	for id := 0; id < 314; id++ {
-		//fmt.Println(id)
 		// these cause a hang, so just skip
 		// rt_sigreturn, select, pause, pselect6, ppoll
 
-		if id == syscall.SYS_SYSLOG || id == syscall.SYS_RT_SIGRETURN || id == syscall.SYS_SELECT || id == syscall.SYS_PAUSE || id == syscall.SYS_PSELECT6 || id == syscall.SYS_PPOLL {
+		if id == syscall.SYS_RT_SIGRETURN || id == syscall.SYS_SELECT || id == syscall.SYS_PAUSE || id == syscall.SYS_PSELECT6 || id == syscall.SYS_PPOLL {
 			continue
 		}
-		// exit_group -- causes us to exit.. doh!
+		// exit_group and exit -- causes us to exit.. doh!
 		if id == syscall.SYS_EXIT || id == syscall.SYS_EXIT_GROUP {
 			continue
 		}
 
 		// things currently break horribly if  CLONE, FORK or VFORK are called and the call succeeds
+		// guess it should be straight forward to kill the forks
 		if id == syscall.SYS_CLONE || id == syscall.SYS_FORK || id == syscall.SYS_VFORK {
-			continue //syscall.Syscall(r, 0, 0, 0)
+			continue
 		}
 
 		_, _, err := syscall.Syscall(uintptr(id), 0, 0, 0)
 
 		// check both EPERM and EACCES - LXC returns EACCES and Docker EPERM
 		if err == syscall.EPERM || err == syscall.EACCES {
-			//fmt.Printf("%d - %s\n", id, err)
 			blocked = append(blocked, id)
-
 		} else {
 			allowed = append(allowed, id)
-
 		}
 
 	}
-	fmt.Println()
-	fmt.Println("Allowed Syscalls: ")
+
+	fmt.Printf("\nAllowed Syscalls: ")
 	for _, c := range allowed {
 		fmt.Printf("%s,", syscallName(c))
 	}
