@@ -30,18 +30,15 @@ func main() {
 		}
 
 		_, _, err := syscall.Syscall(uintptr(id), 0, 0, 0)
-		if err == 1 {
+
+		// check both EPERM and EACCES - LXC returns EACCES and Docker EPERM
+		if err == syscall.EPERM || err == syscall.EACCES {
 			//fmt.Printf("%d - %s\n", id, err)
 			blocked = append(blocked, id)
 
 		} else {
 			allowed = append(allowed, id)
 
-		}
-
-		// if called CLONE, FORK or VFORK, kill the fork
-		if id == syscall.SYS_CLONE || id == syscall.SYS_FORK || id == syscall.SYS_VFORK {
-			//syscall.Syscall(r, 0, 0, 0)
 		}
 
 	}
@@ -669,6 +666,28 @@ func syscallName(e int) string {
 		return "FANOTIFY_MARK"
 	case syscall.SYS_PRLIMIT64:
 		return "PRLIMIT64"
+	case 303:
+		return "NAME_TO_HANDLE_AT"
+	case 304:
+		return "OPEN_BY_HANDLE_AT"
+	case 305:
+		return "CLOCK_ADJTIME"
+	case 306:
+		return "SYNCFS"
+	case 307:
+		return "SENDMMSG"
+	case 308:
+		return "SETNS"
+	case 309:
+		return "GETCPU"
+	case 310:
+		return "PROCESS_VM_READV"
+	case 311:
+		return "PROCESS_VM_WRITEV"
+	case 312:
+		return "KCMP"
+	case 313:
+		return "FINIT_MODULE"
 	}
-	return "ERR_UNKNOWN_SYSCALL"
+	return fmt.Sprintf("%d - ERR_UNKNOWN_SYSCALL", e)
 }
