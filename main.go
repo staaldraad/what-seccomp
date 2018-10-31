@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"strings"
 	"syscall"
 
 	"github.com/jessfraz/bpfd/proc"
@@ -15,13 +16,12 @@ func main() {
 
 	fmt.Println("Checking available syscalls...")
 
-	allowed := []int{}
-	blocked := []int{}
+	allowed := []string{}
+	blocked := []string{}
 
 	for id := 0; id < 314; id++ {
 		// these cause a hang, so just skip
 		// rt_sigreturn, select, pause, pselect6, ppoll
-
 		if id == syscall.SYS_RT_SIGRETURN || id == syscall.SYS_SELECT || id == syscall.SYS_PAUSE || id == syscall.SYS_PSELECT6 || id == syscall.SYS_PPOLL {
 			continue
 		}
@@ -40,25 +40,18 @@ func main() {
 
 		// check both EPERM and EACCES - LXC returns EACCES and Docker EPERM
 		if err == syscall.EPERM || err == syscall.EACCES {
-			blocked = append(blocked, id)
+			blocked = append(blocked, syscallName(id))
 		} else {
-			allowed = append(allowed, id)
+			allowed = append(allowed, syscallName(id))
 		}
 
 	}
 
-	fmt.Printf("\nAllowed Syscalls: ")
-	for _, c := range allowed {
-		fmt.Printf("%s,", syscallName(c))
-	}
+	fmt.Println("\nAllowed Syscalls: ")
+	fmt.Printf("\t%s\n\n", strings.Join(allowed, " "))
 
-	fmt.Printf("\n\n")
 	fmt.Println("Blocked Syscalls: ")
-
-	for _, c := range blocked {
-		fmt.Printf("%s,", syscallName(c))
-	}
-	fmt.Printf("\n\n")
+	fmt.Printf("\t%s\n", strings.Join(blocked, " "))
 
 }
 
